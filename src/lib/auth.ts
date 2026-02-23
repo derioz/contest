@@ -67,9 +67,13 @@ export async function handleAuthCallback(code: string): Promise<AppUser> {
  */
 export async function checkIsAdmin(discordId: string): Promise<boolean> {
     try {
+        console.log("Checking admin status for ID:", discordId);
         const adminDoc = await getDoc(doc(db, 'admins', discordId));
-        return adminDoc.exists();
-    } catch {
+        const exists = adminDoc.exists();
+        console.log("Admin doc exists:", exists);
+        return exists;
+    } catch (error) {
+        console.error("Error fetching admin doc:", error);
         return false;
     }
 }
