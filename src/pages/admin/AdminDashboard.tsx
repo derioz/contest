@@ -1,5 +1,4 @@
 import { useAuth } from '@/contexts/AuthContext';
-import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import {
     Trophy,
