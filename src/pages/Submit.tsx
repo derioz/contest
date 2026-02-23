@@ -31,8 +31,11 @@ export default function Submit() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (!authLoading && user) {
+        if (authLoading) return; // still waiting for auth
+        if (user) {
             fetchContestAndSubmission();
+        } else {
+            setLoading(false); // auth resolved but no user — stop spinner
         }
     }, [user, authLoading]);
 
