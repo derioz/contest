@@ -32,8 +32,15 @@ export async function handleAuthCallback(code: string): Promise<AppUser> {
     });
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Authentication failed');
+        let errorMessage = 'Authentication failed';
+        try {
+            const error = await response.json();
+            errorMessage = error.message;
+        } catch {
+            // Fallback if Vercel returned an HTML error page (e.g. 500 error)
+            errorMessage = `Server Error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
     }
 
     const { customToken, user: discordUser } = await response.json();

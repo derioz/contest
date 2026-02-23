@@ -6,19 +6,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-import * as admin from 'firebase-admin';
-
-// Initialize Firebase Admin if not already done
-if (!admin.apps.length) {
-    try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-        });
-    } catch (e: any) {
-        console.error('Firebase admin initialization error:', e);
-    }
-}
+import admin from 'firebase-admin';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Only allow POST
@@ -66,6 +54,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const discordUser = await userResponse.json();
 
         // Step 3: Create Firebase custom token
+        // Initialize Firebase Admin if not already done
+        try {
+            if (!admin.apps?.length) {
+                const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount),
+                });
+            }
+        } catch (initErr: any) {
+            console.error('Firebase init error:', initErr);
+            return res.status(500).json({ message: `Firebase Init Error: ${initErr.message}` });
+        }
+
         let customToken: string;
         try {
             // Create a custom token with the Discord user ID as the UID
