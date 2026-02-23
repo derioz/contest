@@ -1,13 +1,12 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-    LayoutDashboard, Trophy, Users, ShieldBan,
-    FileBarChart, ChevronLeft, Menu, X,
-} from 'lucide-react';
+import { LayoutDashboard, Trophy, Users, ShieldBan, FileBarChart, ChevronLeft, Menu } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const sidebarLinks = [
+const SIDEBAR_W = 240;
+
+const navLinks = [
     { label: 'Overview', path: '/admin', icon: LayoutDashboard, exact: true },
     { label: 'Contests', path: '/admin/contests', icon: Trophy },
     { label: 'Submissions', path: '/admin/submissions', icon: FileBarChart },
@@ -15,180 +14,214 @@ const sidebarLinks = [
     { label: 'Ban List', path: '/admin/bans', icon: ShieldBan },
 ];
 
-export default function AdminLayout() {
+const S = {
+    sidebar: {
+        position: 'fixed' as const,
+        top: 0, left: 0, bottom: 0,
+        width: SIDEBAR_W,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        backgroundColor: '#0D0D0F',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        zIndex: 40,
+        overflowY: 'auto' as const,
+    },
+    logoArea: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '0 20px',
+        height: 64,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        flexShrink: 0,
+    },
+    logoIcon: {
+        width: 32, height: 32,
+        borderRadius: 10,
+        background: 'linear-gradient(135deg, #E8750A 0%, #FF5500 100%)',
+        boxShadow: '0 4px 16px rgba(232,117,10,0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 800,
+        fontSize: 14,
+        color: '#fff',
+        flexShrink: 0,
+    },
+    logoText: {
+        display: 'flex',
+        flexDirection: 'column' as const,
+        lineHeight: 1.2,
+    },
+    navSection: {
+        flex: 1,
+        padding: '16px 12px 0',
+        overflowY: 'auto' as const,
+    },
+    navLabel: {
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase' as const,
+        color: '#3F3F46',
+        padding: '0 12px',
+        marginBottom: 6,
+    },
+    footer: {
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        flexShrink: 0,
+    },
+    userRow: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '14px 20px',
+    },
+    avatar: {
+        width: 32, height: 32,
+        borderRadius: '50%',
+        flexShrink: 0,
+        border: '1.5px solid rgba(255,255,255,0.12)',
+    },
+    backLink: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 20px',
+        fontSize: 12,
+        color: '#52525B',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        textDecoration: 'none',
+        transition: 'color 0.15s',
+        cursor: 'pointer',
+    },
+};
+
+function NavLink({ link, location, onClose }: { link: typeof navLinks[0], location: { pathname: string }, onClose: () => void }) {
+    const active = link.exact ? location.pathname === link.path : location.pathname.startsWith(link.path);
+    const [hovered, setHovered] = useState(false);
+
+    return (
+        <Link
+            to={link.path}
+            onClick={onClose}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '9px 12px',
+                borderRadius: 10,
+                fontSize: 13,
+                fontWeight: 500,
+                color: active ? '#E8750A' : hovered ? '#A1A1AA' : '#71717A',
+                backgroundColor: active ? 'rgba(232,117,10,0.1)' : hovered ? 'rgba(255,255,255,0.03)' : 'transparent',
+                border: `1px solid ${active ? 'rgba(232,117,10,0.18)' : 'transparent'}`,
+                textDecoration: 'none',
+                marginBottom: 2,
+                transition: 'all 0.15s',
+            }}
+        >
+            <link.icon style={{ width: 16, height: 16, flexShrink: 0 }} />
+            <span>{link.label}</span>
+        </Link>
+    );
+}
+
+function Sidebar({ location, onClose }: { location: { pathname: string }, onClose: () => void }) {
     const { user } = useAuth();
-    const location = useLocation();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    const isActive = (path: string, exact?: boolean) => {
-        if (exact) return location.pathname === path;
-        return location.pathname.startsWith(path);
-    };
-
-    const SidebarInner = () => (
-        <div className="flex flex-col h-full">
-            {/* Logo Header */}
-            <div
-                className="h-16 flex items-center justify-between px-5 flex-shrink-0"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-            >
-                <Link to="/admin" className="flex items-center gap-2.5 group" onClick={() => setSidebarOpen(false)}>
-                    <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white text-sm"
-                        style={{
-                            background: 'linear-gradient(135deg, #E8750A 0%, #FF6B00 100%)',
-                            boxShadow: '0 4px 14px rgba(232,117,10,0.4)',
-                        }}
-                    >
-                        V
-                    </div>
-                    <div className="leading-tight">
-                        <div className="font-bold text-xs tracking-widest text-white uppercase">Vital RP</div>
-                        <div className="text-[10px] tracking-wider" style={{ color: '#52525B' }}>Admin Panel</div>
-                    </div>
-                </Link>
-                <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="md:hidden p-1.5 rounded-lg transition-all"
-                    style={{ color: '#52525B' }}
-                >
-                    <X className="w-4 h-4" />
-                </button>
+    return (
+        <div style={S.sidebar}>
+            {/* Logo */}
+            <div style={S.logoArea}>
+                <div style={S.logoIcon}>V</div>
+                <div style={S.logoText}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#FAFAFA', letterSpacing: '0.05em' }}>VITAL RP</span>
+                    <span style={{ fontSize: 10, color: '#52525B', letterSpacing: '0.06em' }}>Admin Panel</span>
+                </div>
             </div>
 
             {/* Nav */}
-            <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-                <div className="px-3 pb-3">
-                    <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: '#3F3F46' }}>
-                        Navigation
-                    </span>
-                </div>
-                {sidebarLinks.map((link) => {
-                    const active = isActive(link.path, link.exact);
-                    return (
-                        <Link
-                            key={link.path}
-                            to={link.path}
-                            onClick={() => setSidebarOpen(false)}
-                            className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group"
-                            style={{
-                                color: active ? '#E8750A' : '#71717A',
-                                background: active ? 'rgba(232,117,10,0.08)' : 'transparent',
-                                border: active ? '1px solid rgba(232,117,10,0.15)' : '1px solid transparent',
-                            }}
-                            onMouseEnter={e => {
-                                if (!active) (e.currentTarget as HTMLElement).style.color = '#A1A1AA';
-                                if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
-                            }}
-                            onMouseLeave={e => {
-                                if (!active) (e.currentTarget as HTMLElement).style.color = '#71717A';
-                                if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent';
-                            }}
-                        >
-                            <link.icon className="w-4 h-4 flex-shrink-0" />
-                            <span>{link.label}</span>
-                        </Link>
-                    );
-                })}
-            </nav>
+            <div style={S.navSection}>
+                <div style={S.navLabel}>Navigation</div>
+                {navLinks.map(link => <NavLink key={link.path} link={link} location={location} onClose={onClose} />)}
+            </div>
 
-            {/* User Footer */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            {/* User + Back */}
+            <div style={S.footer}>
                 {user && (
-                    <div className="flex items-center gap-3 px-5 py-4">
-                        <img
-                            src={user.avatarUrl}
-                            alt={user.username}
-                            className="w-8 h-8 rounded-full flex-shrink-0"
-                        />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: '#FAFAFA' }}>{user.username}</p>
-                            <p className="text-[10px] font-semibold tracking-wider uppercase" style={{ color: '#E8750A' }}>
+                    <div style={S.userRow}>
+                        <img src={user.avatarUrl} alt={user.username} style={S.avatar} />
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#FAFAFA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {user.username}
+                            </div>
+                            <div style={{ fontSize: 10, color: '#E8750A', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                                 Administrator
-                            </p>
+                            </div>
                         </div>
                     </div>
                 )}
-                <Link
-                    to="/"
-                    className="flex items-center gap-2.5 px-5 py-3.5 text-xs font-medium transition-all duration-200"
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.04)', color: '#52525B' }}
-                    onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#A1A1AA';
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
-                    }}
-                    onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#52525B';
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    }}
-                >
-                    <ChevronLeft className="w-3.5 h-3.5" />
+                <Link to="/" style={S.backLink}>
+                    <ChevronLeft style={{ width: 14, height: 14 }} />
                     Back to Site
                 </Link>
             </div>
         </div>
     );
+}
+
+export default function AdminLayout() {
+    const location = useLocation();
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     return (
-        <div className="min-h-screen flex" style={{ backgroundColor: '#09090B' }}>
-            {/* Desktop Sidebar */}
-            <aside
-                className="hidden md:flex fixed inset-y-0 left-0 z-40 w-60 flex-col"
-                style={{
-                    backgroundColor: '#0C0C0E',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
-                }}
-            >
-                <SidebarInner />
-            </aside>
+        <div style={{ minHeight: '100vh', backgroundColor: '#09090B', display: 'flex' }}>
+            {/* Desktop sidebar always visible */}
+            <div className="hidden md:block" style={{ width: SIDEBAR_W, flexShrink: 0 }}>
+                <Sidebar location={location} onClose={() => { }} />
+            </div>
 
-            {/* Mobile overlay + drawer */}
+            {/* Mobile sidebar */}
             <AnimatePresence>
-                {sidebarOpen && (
+                {mobileOpen && (
                     <>
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="fixed inset-0 z-40 md:hidden"
-                            style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-                            onClick={() => setSidebarOpen(false)}
+                            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', zIndex: 50, backdropFilter: 'blur(4px)' }}
+                            onClick={() => setMobileOpen(false)}
                         />
-                        <motion.aside
-                            initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
-                            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                            className="fixed inset-y-0 left-0 z-50 w-64 flex flex-col md:hidden"
-                            style={{ backgroundColor: '#0C0C0E', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+                        <motion.div
+                            initial={{ x: -SIDEBAR_W }} animate={{ x: 0 }} exit={{ x: -SIDEBAR_W }}
+                            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+                            style={{ position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 60 }}
                         >
-                            <SidebarInner />
-                        </motion.aside>
+                            <Sidebar location={location} onClose={() => setMobileOpen(false)} />
+                        </motion.div>
                     </>
                 )}
             </AnimatePresence>
 
             {/* Main */}
-            <div className="flex-1 md:ml-60">
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 {/* Mobile topbar */}
                 <div
-                    className="md:hidden h-14 flex items-center gap-3 px-4"
-                    style={{ backgroundColor: '#0C0C0E', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    className="flex md:hidden"
+                    style={{ height: 56, alignItems: 'center', gap: 12, padding: '0 16px', backgroundColor: '#0D0D0F', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
                 >
                     <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="p-2 rounded-xl transition-all"
-                        style={{ color: '#71717A' }}
+                        onClick={() => setMobileOpen(true)}
+                        style={{ padding: 8, borderRadius: 8, color: '#71717A', background: 'transparent', border: 'none', cursor: 'pointer' }}
                     >
-                        <Menu className="w-5 h-5" />
+                        <Menu style={{ width: 20, height: 20 }} />
                     </button>
-                    <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-white text-[10px]"
-                        style={{ background: 'linear-gradient(135deg, #E8750A, #FF6B00)' }}
-                    >
-                        V
-                    </div>
-                    <span className="font-bold text-sm tracking-wide" style={{ color: '#FAFAFA' }}>ADMIN PANEL</span>
+                    <div style={{ ...S.logoIcon, width: 26, height: 26, borderRadius: 8, fontSize: 11 }}>V</div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#FAFAFA', letterSpacing: '0.05em' }}>ADMIN PANEL</span>
                 </div>
 
-                <main className="p-5 sm:p-6 lg:p-8">
+                {/* Page */}
+                <main style={{ flex: 1, padding: 32, maxWidth: 1200 }}>
                     <Outlet />
                 </main>
             </div>

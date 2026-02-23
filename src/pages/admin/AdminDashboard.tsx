@@ -1,186 +1,201 @@
 import { useAuth } from '@/contexts/AuthContext';
-import {
-    Trophy, FileBarChart, Users, ShieldBan,
-    ArrowRight, Activity, BarChart3,
-} from 'lucide-react';
+import { Trophy, FileBarChart, Users, ShieldBan, ArrowRight, Activity, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
-const stagger = {
-    container: { animate: { transition: { staggerChildren: 0.07 } } },
-    item: {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
-    },
+const ease = [0.16, 1, 0.3, 1] as const;
+
+const container = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.07 } },
+};
+const fadeUp = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease } },
 };
 
 const stats = [
-    { label: 'Active Contests', value: '—', icon: Trophy, color: '#E8750A', glow: 'rgba(232,117,10,0.15)' },
-    { label: 'Total Submissions', value: '—', icon: BarChart3, color: '#4ade80', glow: 'rgba(74,222,128,0.15)' },
-    { label: 'Registered Users', value: '—', icon: Users, color: '#60a5fa', glow: 'rgba(96,165,250,0.15)' },
-    { label: 'Banned Users', value: '—', icon: ShieldBan, color: '#f87171', glow: 'rgba(248,113,113,0.15)' },
+    { label: 'Active Contests', value: '—', Icon: Trophy, color: '#E8750A', glow: 'rgba(232,117,10,0.18)' },
+    { label: 'Total Submissions', value: '—', Icon: BarChart3, color: '#4ade80', glow: 'rgba(74,222,128,0.18)' },
+    { label: 'Registered Users', value: '—', Icon: Users, color: '#60a5fa', glow: 'rgba(96,165,250,0.18)' },
+    { label: 'Banned Users', value: '—', Icon: ShieldBan, color: '#f87171', glow: 'rgba(248,113,113,0.18)' },
 ];
 
-const quickLinks = [
-    { label: 'Manage Contests', description: 'Create, edit, and manage monthly photo contests', icon: Trophy, path: '/admin/contests' },
-    { label: 'Submissions', description: 'Review and moderate submitted photos', icon: FileBarChart, path: '/admin/submissions' },
-    { label: 'Users', description: 'View registered users and their submissions', icon: Users, path: '/admin/users' },
-    { label: 'Ban List', description: 'Manage banned Discord IDs', icon: ShieldBan, path: '/admin/bans' },
+const actions = [
+    { label: 'Manage Contests', desc: 'Create, edit, and manage monthly photo contests', Icon: Trophy, path: '/admin/contests' },
+    { label: 'Submissions', desc: 'Review and moderate submitted photos', Icon: FileBarChart, path: '/admin/submissions' },
+    { label: 'Users', desc: 'View registered users and their submissions', Icon: Users, path: '/admin/users' },
+    { label: 'Ban List', desc: 'Manage banned Discord IDs', Icon: ShieldBan, path: '/admin/bans' },
 ];
 
-function StatCard({ stat }: { stat: typeof stats[0] }) {
-    const [hovered, setHovered] = useState(false);
+/* ── Glassmorphism stat card ─────────────────────────── */
+function StatCard({ s }: { s: typeof stats[0] }) {
+    const [hov, setHov] = useState(false);
 
     return (
         <motion.div
-            variants={stagger.item}
-            onHoverStart={() => setHovered(true)}
-            onHoverEnd={() => setHovered(false)}
+            variants={fadeUp}
+            onHoverStart={() => setHov(true)}
+            onHoverEnd={() => setHov(false)}
             style={{
-                background: hovered
-                    ? `radial-gradient(circle at 50% 0%, ${stat.glow} 0%, rgba(255,255,255,0.02) 70%)`
-                    : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${hovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.06)'}`,
-                borderRadius: '16px',
-                padding: '20px',
                 position: 'relative',
+                borderRadius: 16,
+                padding: 20,
                 overflow: 'hidden',
                 cursor: 'default',
-                boxShadow: hovered
-                    ? `0 0 40px ${stat.glow}, 0 20px 50px -12px rgba(0,0,0,0.6)`
-                    : '0 4px 24px rgba(0,0,0,0.4)',
-                transition: 'all 0.3s ease',
+                background: hov
+                    ? `radial-gradient(circle at 50% -20%, ${s.glow} 0%, rgba(255,255,255,0.025) 65%)`
+                    : 'rgba(255,255,255,0.025)',
+                border: `1px solid ${hov ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)'}`,
+                boxShadow: hov
+                    ? `0 0 48px ${s.glow}, 0 24px 48px rgba(0,0,0,0.5)`
+                    : '0 8px 32px rgba(0,0,0,0.4)',
+                transition: 'background 0.3s, border 0.3s, box-shadow 0.3s',
             }}
         >
-            {/* Icon + Label */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#52525B' }}>
-                    {stat.label}
+            {/* label + icon */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#52525B' }}>
+                    {s.label}
                 </span>
                 <div style={{
-                    width: '32px', height: '32px', borderRadius: '10px',
-                    background: `${stat.glow}`,
-                    border: `1px solid ${stat.color}22`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 34, height: 34, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: s.glow, border: `1px solid ${s.color}30`,
                 }}>
-                    <stat.icon style={{ width: '15px', height: '15px', color: stat.color }} />
+                    <s.Icon style={{ width: 16, height: 16, color: s.color }} />
                 </div>
             </div>
 
-            {/* Big number */}
-            <div style={{ fontSize: '38px', fontWeight: 800, color: stat.color, lineHeight: 1, marginBottom: '4px' }}>
-                {stat.value}
-            </div>
+            {/* value */}
+            <div style={{ fontSize: 40, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
 
-            {/* Animated bottom line */}
+            {/* hover bottom bar */}
             <motion.div
                 style={{
-                    position: 'absolute', bottom: 0, left: 0, height: '2px',
-                    background: `linear-gradient(90deg, ${stat.color}, transparent)`,
-                    borderRadius: '999px',
+                    position: 'absolute', bottom: 0, left: 0, height: 2, borderRadius: 999,
+                    background: `linear-gradient(90deg, ${s.color}, transparent)`,
                 }}
-                animate={{ width: hovered ? '60%' : '0%' }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
+                animate={{ width: hov ? '55%' : '0%' }}
+                transition={{ duration: 0.4, ease }}
             />
         </motion.div>
     );
 }
 
+/* ── Quick action card ───────────────────────────────── */
+function ActionCard({ a }: { a: typeof actions[0] }) {
+    const [hov, setHov] = useState(false);
+
+    return (
+        <motion.div variants={fadeUp}>
+            <Link to={a.path} style={{ textDecoration: 'none', display: 'block' }}>
+                <motion.div
+                    onHoverStart={() => setHov(true)}
+                    onHoverEnd={() => setHov(false)}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: 16,
+                        padding: '18px 20px', borderRadius: 16,
+                        background: hov ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.025)',
+                        border: `1px solid ${hov ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)'}`,
+                        boxShadow: hov ? '0 12px 36px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.3)',
+                        transition: 'background 0.2s, border 0.2s, box-shadow 0.2s',
+                        cursor: 'pointer',
+                    }}
+                >
+                    {/* icon */}
+                    <div style={{
+                        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: hov ? 'rgba(232,117,10,0.18)' : 'rgba(232,117,10,0.10)',
+                        border: `1px solid ${hov ? 'rgba(232,117,10,0.28)' : 'rgba(232,117,10,0.14)'}`,
+                        transition: 'all 0.2s',
+                    }}>
+                        <a.Icon style={{ width: 20, height: 20, color: '#E8750A' }} />
+                    </div>
+
+                    {/* text */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#FAFAFA', marginBottom: 3 }}>{a.label}</div>
+                        <div style={{ fontSize: 12, color: '#52525B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {a.desc}
+                        </div>
+                    </div>
+
+                    {/* arrow */}
+                    <motion.div animate={{ x: hov ? 3 : 0 }} transition={{ duration: 0.2 }}>
+                        <ArrowRight style={{ width: 16, height: 16, color: hov ? '#E8750A' : '#52525B', flexShrink: 0, transition: 'color 0.2s' }} />
+                    </motion.div>
+                </motion.div>
+            </Link>
+        </motion.div>
+    );
+}
+
+/* ── Page ────────────────────────────────────────────── */
 export default function AdminDashboard() {
     const { user } = useAuth();
 
     return (
-        <motion.div
-            variants={stagger.container}
-            initial="initial"
-            animate="animate"
-            style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}
+        <motion.div variants={container} initial="hidden" animate="show"
+            style={{ display: 'flex', flexDirection: 'column', gap: 36, maxWidth: 960 }}
         >
             {/* Header */}
-            <motion.div variants={stagger.item}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                    <Activity style={{ width: '14px', height: '14px', color: '#E8750A' }} />
-                    <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525B' }}>
+            <motion.div variants={fadeUp}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Activity style={{ width: 14, height: 14, color: '#E8750A' }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#52525B' }}>
                         Dashboard
                     </span>
                 </div>
-                <h1 style={{ fontSize: '30px', fontWeight: 800, color: '#FAFAFA', lineHeight: 1.1, marginBottom: '8px' }}>
+
+                <h1 style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1, color: '#FAFAFA', marginBottom: 8 }}>
                     Welcome back,{' '}
                     <span style={{
-                        background: 'linear-gradient(135deg, #FF8C1A 0%, #E8750A 50%, #FF6B00 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
+                        background: 'linear-gradient(135deg, #FF8C1A 0%, #E8750A 60%, #FF5500 100%)',
+                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                     }}>
                         {user?.username ?? '...'}
                     </span>
                 </h1>
-                <p style={{ fontSize: '14px', color: '#52525B' }}>
-                    Manage contests, moderate submissions, and oversee the community.
+
+                <p style={{ fontSize: 14, color: '#71717A', lineHeight: 1.6 }}>
+                    Manage photo contests, moderate submissions, and oversee the community.
                 </p>
             </motion.div>
 
-            {/* Stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}
-                className="stats-grid">
-                <style>{`@media(min-width:1024px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }`}</style>
-                {stats.map((stat) => <StatCard key={stat.label} stat={stat} />)}
-            </div>
+            {/* Divider */}
+            <motion.div variants={fadeUp}
+                style={{ height: 1, background: 'linear-gradient(90deg, rgba(232,117,10,0.3), rgba(255,255,255,0.04), transparent)' }}
+            />
+
+            {/* Stats row */}
+            <motion.div variants={fadeUp}
+                className="stat-grid"
+                style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}
+            >
+                {/* Inline responsive via style tag */}
+                <style>{`
+                    @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+                    @media (max-width: 480px) { .stat-grid { grid-template-columns: repeat(1, 1fr) !important; } }
+                    @media (max-width: 900px) { .action-grid { grid-template-columns: repeat(1, 1fr) !important; } }
+                `}</style>
+                {stats.map(s => <StatCard key={s.label} s={s} />)}
+            </motion.div>
 
             {/* Quick Actions */}
-            <motion.div variants={stagger.item}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                    <div style={{ width: '4px', height: '18px', background: '#E8750A', borderRadius: '999px' }} />
-                    <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#FAFAFA' }}>Quick Actions</h2>
+            <motion.div variants={fadeUp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Section header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 3, height: 18, background: '#E8750A', borderRadius: 999 }} />
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: '#FAFAFA' }}>Quick Actions</h2>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '12px' }}
-                    className="action-grid">
-                    <style>{`@media(min-width:768px) { .action-grid { grid-template-columns: repeat(2, 1fr); } }`}</style>
-                    {quickLinks.map((link) => (
-                        <motion.div key={link.path} variants={stagger.item}>
-                            <Link to={link.path} style={{ textDecoration: 'none' }}>
-                                <motion.div
-                                    whileHover={{ y: -3 }}
-                                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '16px',
-                                        padding: '20px',
-                                        borderRadius: '16px',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        border: '1px solid rgba(255,255,255,0.06)',
-                                        cursor: 'pointer',
-                                    }}
-                                    className="quick-card group"
-                                >
-                                    {/* Icon */}
-                                    <div style={{
-                                        width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-                                        background: 'rgba(232,117,10,0.1)',
-                                        border: '1px solid rgba(232,117,10,0.15)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
-                                        <link.icon style={{ width: '20px', height: '20px', color: '#E8750A' }} />
-                                    </div>
-
-                                    {/* Text */}
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#FAFAFA', marginBottom: '3px' }}>
-                                            {link.label}
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#52525B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {link.description}
-                                        </div>
-                                    </div>
-
-                                    {/* Arrow */}
-                                    <ArrowRight style={{ width: '16px', height: '16px', color: '#52525B', flexShrink: 0 }} />
-                                </motion.div>
-                            </Link>
-                        </motion.div>
-                    ))}
+                {/* 2-col grid */}
+                <div className="action-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                    {actions.map(a => <ActionCard key={a.path} a={a} />)}
                 </div>
             </motion.div>
         </motion.div>
