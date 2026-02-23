@@ -1,13 +1,28 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Contest, Submission } from '@/lib/firestore-schema';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Check, X, ImageIcon, Filter, CheckSquare, Square } from 'lucide-react';
+import { Check, X, ImageIcon, Filter, CheckSquare, Square, Layers } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const stagger = {
+    container: { animate: { transition: { staggerChildren: 0.05 } } },
+    item: {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const } },
+    }
+};
+
+const glass = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    borderRadius: 20,
+    ...extra,
+});
 
 export default function Submissions() {
     const [contests, setContests] = useState<Contest[]>([]);
@@ -17,21 +32,19 @@ export default function Submissions() {
     const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
     const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
 
-    // 1. Fetch all contests so admin can pick which one to view
+    // 1. Fetch all contests
     useEffect(() => {
         const fetchContests = async () => {
             try {
-                const q = query(collection(db, 'contests'), orderBy('createdAt', 'desc'));
+                const q = query(collection(db, 'contests')); // Not ordering to save another index, can sort in JS if needed
                 const snapshot = await getDocs(q);
-                const fetchedContests = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })) as Contest[];
-                setContests(fetchedContests);
+                let fetchedContests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Contest[];
 
-                if (fetchedContests.length > 0) {
-                    setSelectedContestId(fetchedContests[0].id!);
-                }
+                // Sort by createdAt descending
+                fetchedContests.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+
+                setContests(fetchedContests);
+                if (fetchedContests.length > 0) setSelectedContestId(fetchedContests[0].id!);
             } catch (error) {
                 console.error("Error fetching contests:", error);
                 toast.error("Failed to load contests.");
@@ -40,7 +53,7 @@ export default function Submissions() {
         fetchContests();
     }, []);
 
-    // 2. Fetch submissions when selectedContestId or statusFilter changes
+    // 2. Fetch submissions
     useEffect(() => {
         if (!selectedContestId) {
             setLoading(false);
@@ -50,24 +63,25 @@ export default function Submissions() {
         const fetchSubmissions = async () => {
             setLoading(true);
             try {
-                let q = query(
+                // BUGFIX: Removed orderBy('createdAt', 'desc') to bypass the missing composite index error.
+                // We will sort them in memory instead since contest sizes are small enough.
+                const q = query(
                     collection(db, 'submissions'),
-                    where('contestId', '==', selectedContestId),
-                    orderBy('createdAt', 'desc')
+                    where('contestId', '==', selectedContestId)
                 );
 
                 const snapshot = await getDocs(q);
-                let fetchedSubmissions = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                })) as Submission[];
+                let fetchedSubmissions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Submission[];
+
+                // Sort descending by createdAt in JS
+                fetchedSubmissions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 
                 if (statusFilter !== 'all') {
                     fetchedSubmissions = fetchedSubmissions.filter(s => s.status === statusFilter);
                 }
 
                 setSubmissions(fetchedSubmissions);
-                setSelectedSubmissions(new Set()); // Reset selection when fetching
+                setSelectedSubmissions(new Set());
             } catch (error) {
                 console.error("Error fetching submissions:", error);
                 toast.error("Failed to load submissions.");
@@ -79,15 +93,11 @@ export default function Submissions() {
         fetchSubmissions();
     }, [selectedContestId, statusFilter]);
 
-
     const handleStatusChange = async (submissionId: string, newStatus: 'approved' | 'rejected' | 'pending') => {
         try {
             const subRef = doc(db, 'submissions', submissionId);
             await updateDoc(subRef, { status: newStatus });
-
-            setSubmissions(current =>
-                current.map(sub => sub.id === submissionId ? { ...sub, status: newStatus } : sub)
-            );
+            setSubmissions(current => current.map(sub => sub.id === submissionId ? { ...sub, status: newStatus } : sub));
             toast.success(`Submission ${newStatus}`);
         } catch (error) {
             console.error("Error updating status:", error);
@@ -97,31 +107,26 @@ export default function Submissions() {
 
     const handleBulkStatusChange = async (newStatus: 'approved' | 'rejected') => {
         if (selectedSubmissions.size === 0) return;
-
         try {
             const batch = writeBatch(db);
             selectedSubmissions.forEach(id => {
-                const subRef = doc(db, 'submissions', id);
-                batch.update(subRef, { status: newStatus });
+                batch.update(doc(db, 'submissions', id), { status: newStatus });
             });
             await batch.commit();
 
-            setSubmissions(current =>
-                current.map(sub => selectedSubmissions.has(sub.id!) ? { ...sub, status: newStatus } : sub)
-            );
+            setSubmissions(current => current.map(sub => selectedSubmissions.has(sub.id!) ? { ...sub, status: newStatus } : sub));
             setSelectedSubmissions(new Set());
             toast.success(`${selectedSubmissions.size} submissions ${newStatus}`);
         } catch (error) {
-            console.error("Error bulk updating status:", error);
-            toast.error("Failed to update multiple submissions");
+            console.error("Error bulk updating:", error);
+            toast.error("Failed to update multiple");
         }
     };
 
     const toggleSelection = (id: string) => {
         setSelectedSubmissions(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(id)) newSet.delete(id);
-            else newSet.add(id);
+            newSet.has(id) ? newSet.delete(id) : newSet.add(id);
             return newSet;
         });
     };
@@ -134,141 +139,174 @@ export default function Submissions() {
         }
     };
 
+    const getStatusColor = (status: string) => {
+        if (status === 'approved') return '#4ade80';
+        if (status === 'rejected') return '#ef4444';
+        return '#fbbf24';
+    };
+
     if (loading && contests.length === 0) {
-        return <div className="py-20 flex justify-center"><LoadingSpinner /></div>;
+        return <div style={{ padding: 100, display: 'flex', justifyContent: 'center' }}><LoadingSpinner /></div>;
     }
 
     return (
-        <div className="space-y-8 animate-fade-in">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="heading text-3xl text-text-primary mb-2">Submissions</h1>
-                    <p className="text-text-secondary">Review and moderate entries for your contests.</p>
-                </div>
+        <motion.div variants={stagger.container} initial="initial" animate="animate" style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
 
-                <div className="flex flex-wrap items-center gap-4">
-                    <select
-                        value={selectedContestId}
-                        onChange={(e) => setSelectedContestId(e.target.value)}
-                        className="bg-bg-tertiary border border-border-default text-text-primary rounded-lg px-4 py-2 focus:outline-none focus:border-accent-orange"
-                    >
-                        {contests.length === 0 && <option value="">No contests found</option>}
-                        {contests.map((c) => (
-                            <option key={c.id} value={c.id}>{c.name} ({c.phase})</option>
-                        ))}
-                    </select>
+            {/* Header Area */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 40 }}>
+                <motion.div variants={stagger.item}>
+                    <h1 style={{ fontSize: 36, fontWeight: 800, color: '#FAFAFA', letterSpacing: '-0.02em', margin: '0 0 8px 0' }}>
+                        Submissions manager
+                    </h1>
+                    <p style={{ color: '#A1A1AA', fontSize: 16, margin: 0 }}>Review, approve, and filter entries for your active contests.</p>
+                </motion.div>
 
-                    <div className="flex items-center gap-2 bg-bg-tertiary border border-border-default rounded-lg p-1">
-                        <Filter className="w-4 h-4 text-text-muted ml-2" />
-                        {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${statusFilter === status
-                                    ? 'bg-accent-orange text-white'
-                                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                                    }`}
-                            >
-                                {status.charAt(0).toUpperCase() + status.slice(1)}
-                            </button>
-                        ))}
+                {/* Filters */}
+                <motion.div variants={stagger.item} style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+                    <div style={{ position: 'relative' }}>
+                        <Layers style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: '#71717A' }} />
+                        <select
+                            value={selectedContestId}
+                            onChange={(e) => setSelectedContestId(e.target.value)}
+                            style={{ appearance: 'none', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 40px', color: '#FAFAFA', fontSize: 14, fontWeight: 500, outline: 'none', cursor: 'pointer' }}
+                        >
+                            {contests.length === 0 && <option value="">No contests</option>}
+                            {contests.map((c) => <option key={c.id} value={c.id} style={{ background: '#0D0D0F' }}>{c.name} ({c.phase})</option>)}
+                        </select>
                     </div>
-                </div>
+
+                    <div style={{ ...glass({ padding: 4, borderRadius: 12 }), display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <Filter style={{ width: 14, height: 14, color: '#71717A', marginLeft: 12, marginRight: 8 }} />
+                        {(['all', 'pending', 'approved', 'rejected'] as const).map(status => {
+                            const isActive = statusFilter === status;
+                            return (
+                                <button
+                                    key={status}
+                                    onClick={() => setStatusFilter(status)}
+                                    style={{ background: isActive ? '#E8750A' : 'transparent', color: isActive ? '#FFF' : '#A1A1AA', border: 'none', padding: '6px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, textTransform: 'capitalize', cursor: 'pointer', transition: 'all 0.2s' }}
+                                >
+                                    {status}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </motion.div>
             </div>
 
-            {selectedSubmissions.size > 0 && (
-                <div className="bg-accent-orange/10 border border-accent-orange/20 rounded-lg p-4 flex items-center justify-between animate-fade-in">
-                    <span className="text-text-primary font-medium">{selectedSubmissions.size} Selected</span>
-                    <div className="flex items-center gap-2">
-                        <Button variant="secondary" size="sm" onClick={toggleSelectAll}>
-                            Select All
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={() => handleBulkStatusChange('approved')}>
-                            <Check className="w-4 h-4 mr-2" /> Approve All
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => handleBulkStatusChange('rejected')}>
-                            <X className="w-4 h-4 mr-2" /> Reject All
-                        </Button>
-                    </div>
-                </div>
-            )}
+            {/* Bulk Actions Bar */}
+            <AnimatePresence>
+                {selectedSubmissions.size > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: 'auto' }}
+                        exit={{ opacity: 0, y: -10, height: 0 }}
+                        style={{ overflow: 'hidden', marginBottom: 24 }}
+                    >
+                        <div style={{ background: 'rgba(232,117,10,0.1)', border: '1px solid rgba(232,117,10,0.2)', borderRadius: 16, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                                <span style={{ color: '#FAFAFA', fontSize: 15, fontWeight: 600 }}>{selectedSubmissions.size} Selected</span>
+                                <button onClick={toggleSelectAll} style={{ background: 'rgba(255,255,255,0.05)', color: '#A1A1AA', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                                    {selectedSubmissions.size === submissions.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <button onClick={() => handleBulkStatusChange('approved')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(74,222,128,0.15)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                                    <Check style={{ width: 16, height: 16 }} /> Approve All
+                                </button>
+                                <button onClick={() => handleBulkStatusChange('rejected')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                                    <X style={{ width: 16, height: 16 }} /> Reject All
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
+            {/* Content Grid */}
             {loading ? (
-                <div className="py-20 flex justify-center"><LoadingSpinner /></div>
+                <div style={{ padding: 100, display: 'flex', justifyContent: 'center' }}><LoadingSpinner /></div>
             ) : submissions.length === 0 ? (
-                <Card className="p-12 text-center border-dashed">
-                    <ImageIcon className="w-12 h-12 text-text-muted mx-auto mb-4 opacity-50" />
-                    <h3 className="heading text-xl text-text-primary mb-2">No submissions found</h3>
-                    <p className="text-text-secondary">
-                        There are no submissions matching your current filters for this contest.
-                    </p>
-                </Card>
+                <div style={{ ...glass({ borderStyle: 'dashed', borderRadius: 24 }), padding: '80px 24px', textAlign: 'center' }}>
+                    <ImageIcon style={{ width: 48, height: 48, color: '#3F3F46', margin: '0 auto 16px' }} />
+                    <h3 style={{ fontSize: 20, fontWeight: 700, color: '#A1A1AA', marginBottom: 8 }}>No submissions found</h3>
+                    <p style={{ color: '#71717A', fontSize: 14 }}>There are no submissions matching your current filters.</p>
+                </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 24 }}>
                     {submissions.map((sub) => {
                         const isSelected = selectedSubmissions.has(sub.id!);
+                        const sColor = getStatusColor(sub.status);
+
                         return (
-                            <Card key={sub.id} className={`overflow-hidden relative transition-all duration-200 ${isSelected ? 'ring-2 ring-accent-orange' : ''}`}>
-                                <div className="absolute top-2 left-2 z-10">
-                                    <button
-                                        onClick={() => toggleSelection(sub.id!)}
-                                        className={`p-1.5 rounded bg-black/50 backdrop-blur border transition-all ${isSelected ? 'border-accent-orange text-accent-orange' : 'border-white/20 text-white/50 hover:text-white'}`}
-                                    >
-                                        {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
-                                    </button>
-                                </div>
-                                <div className="relative aspect-video group bg-bg-tertiary">
+                            <motion.div key={sub.id} variants={stagger.item} style={{ ...glass(), overflow: 'hidden', position: 'relative', boxShadow: isSelected ? '0 0 0 2px #E8750A' : 'none', transition: 'box-shadow 0.2s' }}>
+                                {/* Image Box */}
+                                <div style={{ position: 'relative', aspectRatio: '16/9', backgroundColor: '#000', overflow: 'hidden' }}>
+
+                                    {/* Selection Checkbox overlay */}
+                                    <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>
+                                        <button
+                                            onClick={() => toggleSelection(sub.id!)}
+                                            style={{ background: isSelected ? '#E8750A' : 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', border: `1px solid ${isSelected ? '#E8750A' : 'rgba(255,255,255,0.2)'}`, color: '#FFF', borderRadius: 8, padding: 6, display: 'flex', cursor: 'pointer', transition: 'all 0.2s' }}
+                                        >
+                                            {isSelected ? <CheckSquare style={{ width: 18, height: 18 }} /> : <Square style={{ width: 18, height: 18 }} />}
+                                        </button>
+                                    </div>
+
+                                    {/* Status Badge overlay */}
+                                    <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 10 }}>
+                                        <span style={{ background: `${sColor}20`, border: `1px solid ${sColor}40`, color: sColor, padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', backdropFilter: 'blur(4px)' }}>
+                                            {sub.status}
+                                        </span>
+                                    </div>
+
                                     <img
                                         src={sub.imageUrl}
                                         alt="Submission"
-                                        className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${sub.status === 'rejected' ? 'grayscale opacity-50' : ''}`}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: sub.status === 'rejected' ? 0.4 : 1, filter: sub.status === 'rejected' ? 'grayscale(100%)' : 'none', transition: 'transform 0.5s' }}
+                                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                         loading="lazy"
                                     />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                                </div>
+                                    <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '50%', background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)', pointerEvents: 'none' }} />
 
-                                <div className="p-5 flex flex-col gap-4">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src={sub.avatarUrl || '/default-avatar.png'} alt={sub.username} className="w-10 h-10 rounded-full border border-border-default" />
-                                            <div>
-                                                <p className="font-heading font-medium text-text-primary leading-tight">{sub.username}</p>
-                                                <p className="text-xs text-text-muted mt-0.5 max-w-[150px] truncate" title={sub.userId}>{sub.userId}</p>
-                                            </div>
+                                    {/* Submitter Info */}
+                                    <div style={{ position: 'absolute', bottom: 16, left: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                        <img src={sub.avatarUrl || '/default-avatar.png'} alt="P" style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.1)' }} />
+                                        <div>
+                                            <div style={{ color: '#FFF', fontSize: 14, fontWeight: 600, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{sub.username}</div>
+                                            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 500 }}>ID: {sub.userId}</div>
                                         </div>
-                                        <Badge variant={sub.status === 'approved' ? 'green' : sub.status === 'rejected' ? 'red' : 'amber'} className="capitalize shrink-0">
-                                            {sub.status}
-                                        </Badge>
-                                    </div>
-
-                                    <div className="flex justify-end gap-2 mt-auto pt-2 border-t border-border-default">
-                                        {sub.status !== 'approved' && (
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="flex-1 bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20 hover:border-green-500/30"
-                                                onClick={() => handleStatusChange(sub.id!, 'approved')}
-                                            >
-                                                <Check className="w-4 h-4 mr-1.5" /> Approve
-                                            </Button>
-                                        )}
-                                        {sub.status !== 'rejected' && (
-                                            <Button
-                                                variant="danger"
-                                                size="sm"
-                                                className="flex-1"
-                                                onClick={() => handleStatusChange(sub.id!, 'rejected')}
-                                            >
-                                                <X className="w-4 h-4 mr-1.5" /> Reject
-                                            </Button>
-                                        )}
                                     </div>
                                 </div>
-                            </Card>
+
+                                {/* Action Buttons */}
+                                <div style={{ padding: 16, display: 'flex', gap: 8, background: 'rgba(0,0,0,0.2)' }}>
+                                    {sub.status !== 'approved' && (
+                                        <button
+                                            onClick={() => handleStatusChange(sub.id!, 'approved')}
+                                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(74,222,128,0.1)', color: '#4ade80', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 10, padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(74,222,128,0.15)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(74,222,128,0.1)'}
+                                        >
+                                            <Check style={{ width: 14, height: 14 }} /> Approve
+                                        </button>
+                                    )}
+                                    {sub.status !== 'rejected' && (
+                                        <button
+                                            onClick={() => handleStatusChange(sub.id!, 'rejected')}
+                                            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.15)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+                                        >
+                                            <X style={{ width: 14, height: 14 }} /> Reject
+                                        </button>
+                                    )}
+                                </div>
+                            </motion.div>
                         );
                     })}
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 }
