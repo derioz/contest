@@ -1,334 +1,443 @@
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import {
+    collection, query, orderBy, limit, getDocs,
+    addDoc, updateDoc, doc, Timestamp,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Contest, Category } from '@/lib/firestore-schema';
 import { useAuth } from '@/contexts/AuthContext';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import CategoryBuilder from '@/components/admin/CategoryBuilder';
-import Badge from '@/components/ui/Badge';
 import toast from 'react-hot-toast';
-import { Calendar, Clock, Trophy, Users } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Trophy, Calendar, Clock, Users, Rocket, CheckCircle2,
+    Vote, Lock, Sparkles, Plus, AlertTriangle, ChevronRight,
+} from 'lucide-react';
 
+/* ─── animation helpers from uitripled timeline pattern ─── */
+const ease = [0.16, 1, 0.3, 1] as const;
+const container = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.08 } },
+};
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease } },
+};
+
+/* ─── primitives ─────────────────────────────────────────── */
+const glass = (extra: React.CSSProperties = {}): React.CSSProperties => ({
+    background: 'rgba(255,255,255,0.025)',
+    border: '1px solid rgba(255,255,255,0.07)',
+    borderRadius: 16,
+    ...extra,
+});
+
+function Pill({ children, color = '#E8750A' }: { children: React.ReactNode; color?: string }) {
+    return (
+        <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '3px 10px', borderRadius: 999, fontSize: 10,
+            fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            background: `${color}18`, border: `1px solid ${color}30`, color,
+        }}>
+            {children}
+        </span>
+    );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+    return (
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#52525B', marginBottom: 6 }}>
+            {children}
+        </div>
+    );
+}
+
+const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    padding: '10px 14px', borderRadius: 10, fontSize: 13,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: '#FAFAFA', outline: 'none',
+    transition: 'border 0.15s',
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <Label>{label}</Label>
+            {children}
+        </div>
+    );
+}
+
+/* ─── phase badge ────────────────────────────────────────── */
+const phaseConfig = {
+    submission: { color: '#4ade80', label: 'Submission Phase', Icon: Rocket },
+    voting: { color: '#E8750A', label: 'Voting Phase', Icon: Vote },
+    closed: { color: '#71717A', label: 'Closed', Icon: Lock },
+};
+
+/* ─── main page ──────────────────────────────────────────── */
 export default function ContestManager() {
     const { user } = useAuth();
-
     const [activeContest, setActiveContest] = useState<Contest | null>(null);
     const [loading, setLoading] = useState(true);
 
-    // Form State
     const [name, setName] = useState('');
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [categories, setCategories] = useState<Category[]>([]);
     const [votingCloseDate, setVotingCloseDate] = useState('');
     const [votingCloseTime, setVotingCloseTime] = useState('23:59');
-
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        fetchActiveContest();
-    }, []);
+    useEffect(() => { fetchActiveContest(); }, []);
 
     const fetchActiveContest = async () => {
         try {
             const q = query(collection(db, 'contests'), orderBy('createdAt', 'desc'), limit(1));
-            const snapshot = await getDocs(q);
-
-            if (!snapshot.empty) {
-                const docData = snapshot.docs[0];
-                setActiveContest({ id: docData.id, ...docData.data() } as Contest);
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const d = snap.docs[0];
+                setActiveContest({ id: d.id, ...d.data() } as Contest);
             }
-        } catch (error) {
-            console.error('Error fetching contest:', error);
-            toast.error('Failed to load active contest');
-        } finally {
-            setLoading(false);
-        }
+        } catch { toast.error('Failed to load active contest'); }
+        finally { setLoading(false); }
     };
 
-    const handleCreateContest = async (e: React.FormEvent) => {
+    const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-
-        if (categories.length === 0) {
-            toast.error('Please add at least one category.');
-            return;
-        }
-
-        if (!votingCloseDate || !votingCloseTime) {
-            toast.error('Please set a voting close date and time.');
-            return;
-        }
-
+        if (categories.length === 0) { toast.error('Add at least one category.'); return; }
+        if (!votingCloseDate || !votingCloseTime) { toast.error('Set a voting deadline.'); return; }
         setIsSubmitting(true);
-
         try {
-            // Combine date and time
-            const dateTimeString = `${votingCloseDate}T${votingCloseTime}`;
-            const closeDate = new Date(dateTimeString);
-
-            const newContest: Omit<Contest, 'id'> = {
+            const closeDate = new Date(`${votingCloseDate}T${votingCloseTime}`);
+            const contest: Omit<Contest, 'id'> = {
                 name: name.trim() || `${new Date(year, month - 1).toLocaleString('default', { month: 'long' })} ${year}`,
-                month,
-                year,
-                categories,
-                phase: 'submission', // Default to submission phase
+                month, year, categories,
+                phase: 'submission',
                 votingCloseDate: Timestamp.fromDate(closeDate),
                 createdAt: Timestamp.now(),
                 createdBy: user.uid,
             };
-
-            const docRef = await addDoc(collection(db, 'contests'), newContest);
-
-            setActiveContest({ id: docRef.id, ...newContest });
-            toast.success('Contest created successfully!');
-
-            // Reset form
-            setName('');
-            setCategories([]);
-            setVotingCloseDate('');
-            setVotingCloseTime('23:59');
-
-        } catch (error) {
-            console.error('Error creating contest:', error);
-            toast.error('Failed to create contest.');
-        } finally {
-            setIsSubmitting(false);
-        }
+            const ref = await addDoc(collection(db, 'contests'), contest);
+            setActiveContest({ id: ref.id, ...contest });
+            toast.success('Contest launched!');
+            setName(''); setCategories([]); setVotingCloseDate(''); setVotingCloseTime('23:59');
+        } catch { toast.error('Failed to create contest.'); }
+        finally { setIsSubmitting(false); }
     };
 
-    const updateContestPhase = async (newPhase: 'submission' | 'voting' | 'closed') => {
+    const updatePhase = async (p: 'submission' | 'voting' | 'closed') => {
         if (!activeContest) return;
-
         try {
-            await updateDoc(doc(db, 'contests', activeContest.id), {
-                phase: newPhase
-            });
-            setActiveContest({ ...activeContest, phase: newPhase });
-            toast.success(`Phase changed to ${newPhase}`);
-        } catch (error) {
-            console.error('Error updating phase:', error);
-            toast.error('Failed to update phase');
-        }
+            await updateDoc(doc(db, 'contests', activeContest.id), { phase: p });
+            setActiveContest({ ...activeContest, phase: p });
+            toast.success(`Phase → ${p}`);
+        } catch { toast.error('Failed to update phase'); }
     };
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-20">
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '80px 0' }}>
                 <LoadingSpinner />
             </div>
         );
     }
 
+    const phaseInfo = activeContest ? phaseConfig[activeContest.phase] : null;
+
     return (
-        <div className="animate-fade-in space-y-8">
-            <div>
-                <h1 className="heading text-3xl text-text-primary">Contest Manager</h1>
-                <p className="text-text-secondary mt-2">Create new contests and manage the active monthly phase.</p>
-            </div>
+        <motion.div variants={container} initial="hidden" animate="show"
+            style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1100 }}
+        >
+            {/* ── Page header ──────────────────────────────────── */}
+            <motion.div variants={item}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Trophy style={{ width: 14, height: 14, color: '#E8750A' }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525B' }}>
+                        Contest Manager
+                    </span>
+                </div>
+                <h1 style={{ fontSize: 28, fontWeight: 800, color: '#FAFAFA', lineHeight: 1.1, marginBottom: 6 }}>
+                    Manage Contests
+                </h1>
+                <p style={{ fontSize: 14, color: '#71717A' }}>
+                    Create new contests, manage phases, and configure voting deadlines.
+                </p>
+            </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* ── gradient divider ─────────────────────────────── */}
+            <motion.div variants={item}
+                style={{ height: 1, background: 'linear-gradient(90deg, rgba(232,117,10,0.35), rgba(255,255,255,0.04), transparent)' }}
+            />
 
-                {/* Left Column: Current Active Contest State */}
-                <div className="space-y-6">
-                    <h2 className="heading text-xl text-text-primary">Active Contest</h2>
+            {/* ── Main 2-col grid ───────────────────────────────── */}
+            <div className="cm-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+                <style>{`@media(max-width:860px){.cm-grid{grid-template-columns:1fr!important;}}`}</style>
 
-                    {activeContest ? (
-                        <Card className="p-6 border-accent-orange/20 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                                <Trophy className="w-32 h-32 text-accent-orange" />
-                            </div>
+                {/* LEFT — Active Contest Panel */}
+                <motion.div variants={item}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525B', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 3, height: 14, background: '#4ade80', borderRadius: 999 }} />
+                        Active Contest
+                    </div>
 
-                            <div className="relative z-10 space-y-6">
-                                <div>
-                                    <h3 className="heading text-2xl text-text-primary mb-2">
+                    <AnimatePresence mode="wait">
+                        {activeContest ? (
+                            <motion.div
+                                key="active"
+                                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.4, ease }}
+                                style={{ ...glass(), padding: 24, position: 'relative', overflow: 'hidden' }}
+                            >
+                                {/* background trophy watermark */}
+                                <Trophy style={{ position: 'absolute', right: -16, top: -16, width: 120, height: 120, color: '#E8750A', opacity: 0.05 }} />
+
+                                {/* Name + Phase */}
+                                <div style={{ marginBottom: 20 }}>
+                                    <div style={{ fontSize: 20, fontWeight: 800, color: '#FAFAFA', marginBottom: 8 }}>
                                         {activeContest.name}
-                                    </h3>
-                                    <div className="flex gap-2">
-                                        <Badge variant={
-                                            activeContest.phase === 'submission' ? 'green' :
-                                                activeContest.phase === 'voting' ? 'orange' : 'default'
-                                        }>
-                                            {activeContest.phase.toUpperCase()} PHASE
-                                        </Badge>
+                                    </div>
+                                    {phaseInfo && (
+                                        <Pill color={phaseInfo.color}>
+                                            <phaseInfo.Icon style={{ width: 10, height: 10 }} />
+                                            {phaseInfo.label}
+                                        </Pill>
+                                    )}
+                                </div>
+
+                                {/* Meta rows — uitripled timeline item style */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20, padding: '16px 0', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#A1A1AA' }}>
+                                        <Calendar style={{ width: 14, height: 14, color: '#52525B', flexShrink: 0 }} />
+                                        <span>Voting closes: <strong style={{ color: '#FAFAFA' }}>{activeContest.votingCloseDate.toDate().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#A1A1AA' }}>
+                                        <Clock style={{ width: 14, height: 14, color: '#52525B', flexShrink: 0 }} />
+                                        <span>Time: <strong style={{ color: '#FAFAFA' }}>{activeContest.votingCloseDate.toDate().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</strong></span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: '#A1A1AA' }}>
+                                        <Users style={{ width: 14, height: 14, color: '#52525B', flexShrink: 0 }} />
+                                        <span>Submissions: <strong style={{ color: '#FAFAFA' }}>0</strong></span>
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <div className="flex items-center text-text-secondary">
-                                        <Calendar className="w-5 h-5 mr-3 text-text-muted" />
-                                        <span>Voting Closes: <strong className="text-text-primary">
-                                            {activeContest.votingCloseDate.toDate().toLocaleString()}
-                                        </strong></span>
+                                {/* Categories */}
+                                <div style={{ marginBottom: 24 }}>
+                                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#52525B', marginBottom: 10 }}>
+                                        Categories ({activeContest.categories.length})
                                     </div>
-                                    <div className="flex items-center text-text-secondary">
-                                        <Users className="w-5 h-5 mr-3 text-text-muted" />
-                                        <span>Total Submissions: <strong className="text-text-primary">0</strong></span>
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 border-t border-white/[0.06]">
-                                    <h4 className="font-heading font-semibold text-text-primary mb-3">Categories ({activeContest.categories.length})</h4>
-                                    <div className="flex flex-wrap gap-2">
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                                         {activeContest.categories.map(cat => (
-                                            <span key={cat.id} className="text-xs bg-bg-primary border border-white/[0.06] px-2 py-1 rounded text-text-secondary">
+                                            <span key={cat.id} style={{
+                                                padding: '4px 10px', borderRadius: 999, fontSize: 11,
+                                                background: 'rgba(255,255,255,0.04)',
+                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                color: '#A1A1AA',
+                                            }}>
                                                 {cat.name}
                                             </span>
                                         ))}
                                     </div>
                                 </div>
 
-                                <div className="pt-6">
-                                    <h4 className="font-heading font-semibold text-text-primary mb-3">Phase Controls</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            variant={activeContest.phase === 'submission' ? 'primary' : 'secondary'}
-                                            onClick={() => updateContestPhase('submission')}
-                                            disabled={activeContest.phase === 'submission'}
-                                        >
-                                            Submission
-                                        </Button>
-                                        <Button
-                                            variant={activeContest.phase === 'voting' ? 'primary' : 'secondary'}
-                                            onClick={() => updateContestPhase('voting')}
-                                            disabled={activeContest.phase === 'voting'}
-                                        >
-                                            Voting
-                                        </Button>
-                                        <Button
-                                            variant={activeContest.phase === 'closed' ? 'primary' : 'secondary'}
-                                            onClick={() => updateContestPhase('closed')}
-                                            disabled={activeContest.phase === 'closed'}
-                                        >
-                                            Closed
-                                        </Button>
+                                {/* Phase controls — bento card style */}
+                                <div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#52525B', marginBottom: 12 }}>
+                                        Phase Controls
                                     </div>
-                                    <p className="text-xs text-text-muted mt-2">
-                                        Changing the phase automatically updates the website view for players.
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        {(['submission', 'voting', 'closed'] as const).map(p => {
+                                            const cfg = phaseConfig[p];
+                                            const isActive = activeContest.phase === p;
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => updatePhase(p)}
+                                                    disabled={isActive}
+                                                    style={{
+                                                        flex: 1, padding: '10px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                                                        cursor: isActive ? 'default' : 'pointer',
+                                                        background: isActive ? `${cfg.color}18` : 'rgba(255,255,255,0.03)',
+                                                        border: isActive ? `1px solid ${cfg.color}35` : '1px solid rgba(255,255,255,0.07)',
+                                                        color: isActive ? cfg.color : '#71717A',
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                                                        transition: 'all 0.15s',
+                                                    }}
+                                                >
+                                                    {isActive ? <CheckCircle2 style={{ width: 14, height: 14 }} /> : <cfg.Icon style={{ width: 14, height: 14 }} />}
+                                                    <span style={{ textTransform: 'capitalize' }}>{p}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p style={{ fontSize: 11, color: '#3F3F46', marginTop: 8, lineHeight: 1.5 }}>
+                                        Changing the phase updates the website in real-time.
                                     </p>
                                 </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                style={{ ...glass({ borderStyle: 'dashed' }), padding: 40, textAlign: 'center' }}
+                            >
+                                <Trophy style={{ width: 40, height: 40, color: '#3F3F46', margin: '0 auto 12px' }} />
+                                <div style={{ fontSize: 14, fontWeight: 600, color: '#71717A', marginBottom: 4 }}>No Active Contest</div>
+                                <div style={{ fontSize: 12, color: '#3F3F46' }}>Create your first contest using the form →</div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </motion.div>
+
+                {/* RIGHT — Create Form (glassmorphism-launch-timeline style) */}
+                <motion.div variants={item}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#52525B', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 3, height: 14, background: '#E8750A', borderRadius: 999 }} />
+                        Create New Contest
+                    </div>
+
+                    <div style={{ ...glass(), padding: 24, position: 'relative', overflow: 'hidden' }}>
+                        {/* subtle gradient overlay from uitripled bento pattern */}
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(232,117,10,0.04) 0%, transparent 60%)', pointerEvents: 'none' }} />
+
+                        {activeContest && (
+                            <div style={{
+                                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 10, marginBottom: 16,
+                                background: 'rgba(232,117,10,0.08)', border: '1px solid rgba(232,117,10,0.2)',
+                            }}>
+                                <AlertTriangle style={{ width: 14, height: 14, color: '#E8750A', flexShrink: 0, marginTop: 1 }} />
+                                <p style={{ fontSize: 12, color: '#E8750A', lineHeight: 1.5, margin: 0 }}>
+                                    Creating a new contest will replace the current active one. Ensure the current contest is fully finished.
+                                </p>
                             </div>
-                        </Card>
-                    ) : (
-                        <Card className="p-8 text-center border-dashed">
-                            <p className="text-text-secondary">No contest exists in the database.</p>
-                            <p className="text-sm text-text-muted mt-2">Create the first one using the form on the right.</p>
-                        </Card>
-                    )}
-                </div>
+                        )}
 
-                {/* Right Column: Create New Contest */}
-                <div className="space-y-6">
-                    <h2 className="heading text-xl text-text-primary">Create New Contest</h2>
+                        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 20, position: 'relative' }}>
 
-                    <Card className="p-6">
-                        <form onSubmit={handleCreateContest} className="space-y-6">
+                            {/* Name */}
+                            <Field label="Contest Display Name">
+                                <input
+                                    style={inputStyle}
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="e.g. March 2026 (auto-generated if blank)"
+                                    onFocus={e => (e.target.style.borderColor = 'rgba(232,117,10,0.5)')}
+                                    onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
+                                />
+                            </Field>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-text-secondary mb-1">
-                                        Contest Display Name
-                                    </label>
-                                    <Input
-                                        value={name}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                                        placeholder="e.g. March 2026 (Leave blank to auto-generate from month/year)"
+                            {/* Month + Year */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                <Field label="Target Month">
+                                    <select
+                                        style={{ ...inputStyle, cursor: 'pointer' }}
+                                        value={month}
+                                        onChange={e => setMonth(Number(e.target.value))}
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                            <option key={m} value={m} style={{ background: '#0D0D0F', color: '#FAFAFA' }}>
+                                                {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Field>
+                                <Field label="Year">
+                                    <input
+                                        type="number"
+                                        style={inputStyle}
+                                        value={year}
+                                        onChange={e => setYear(Number(e.target.value))}
+                                        min={2026}
+                                        onFocus={e => (e.target.style.borderColor = 'rgba(232,117,10,0.5)')}
+                                        onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
                                     />
+                                </Field>
+                            </div>
+
+                            {/* Categories section */}
+                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                                    <Plus style={{ width: 13, height: 13, color: '#E8750A' }} />
+                                    <Label>Categories</Label>
                                 </div>
+                                <CategoryBuilder categories={categories} onChange={setCategories} />
+                            </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-secondary mb-1">
-                                            Target Month
-                                        </label>
-                                        <select
-                                            className="w-full bg-bg-primary border border-white/[0.06] rounded-md px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-orange"
-                                            value={month}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMonth(Number(e.target.value))}
-                                        >
-                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                                <option key={m} value={m}>
-                                                    {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
-                                                </option>
-                                            ))}
-                                        </select>
+                            {/* Voting Deadline */}
+                            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+                                    <Clock style={{ width: 13, height: 13, color: '#E8750A' }} />
+                                    <Label>Voting Deadline</Label>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <Calendar style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#52525B', pointerEvents: 'none' }} />
+                                        <input
+                                            type="date"
+                                            required
+                                            style={{ ...inputStyle, paddingLeft: 34 }}
+                                            value={votingCloseDate}
+                                            onChange={e => setVotingCloseDate(e.target.value)}
+                                            onFocus={e => (e.target.style.borderColor = 'rgba(232,117,10,0.5)')}
+                                            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
+                                        />
                                     </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium text-text-secondary mb-1">
-                                            Year
-                                        </label>
-                                        <Input
-                                            type="number"
-                                            value={year}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setYear(Number(e.target.value))}
-                                            min={2026}
+                                    <div style={{ position: 'relative' }}>
+                                        <Clock style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 13, height: 13, color: '#52525B', pointerEvents: 'none' }} />
+                                        <input
+                                            type="time"
+                                            required
+                                            style={{ ...inputStyle, paddingLeft: 34 }}
+                                            value={votingCloseTime}
+                                            onChange={e => setVotingCloseTime(e.target.value)}
+                                            onFocus={e => (e.target.style.borderColor = 'rgba(232,117,10,0.5)')}
+                                            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,0.08)')}
                                         />
                                     </div>
                                 </div>
-
-                                <div className="pt-4 border-t border-white/[0.06]">
-                                    <label className="block text-sm font-medium text-text-secondary mb-3">
-                                        Categories
-                                    </label>
-                                    <CategoryBuilder
-                                        categories={categories}
-                                        onChange={setCategories}
-                                    />
-                                </div>
-
-                                <div className="pt-4 border-t border-white/[0.06]">
-                                    <label className="block text-sm font-medium text-text-secondary mb-3">
-                                        Voting Deadline (When voting automatically closes)
-                                    </label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
-                                            <Input
-                                                type="date"
-                                                required
-                                                className="pl-10"
-                                                value={votingCloseDate}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVotingCloseDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="relative">
-                                            <Clock className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
-                                            <Input
-                                                type="time"
-                                                required
-                                                className="pl-10"
-                                                value={votingCloseTime}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVotingCloseTime(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
 
-                            <div className="pt-6">
-                                <Button
+                            {/* Submit */}
+                            <div style={{ paddingTop: 8 }}>
+                                <motion.button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full"
+                                    whileHover={isSubmitting ? {} : { scale: 1.01 }}
+                                    whileTap={isSubmitting ? {} : { scale: 0.99 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                                    style={{
+                                        width: '100%', padding: '13px 20px', borderRadius: 12, fontSize: 14,
+                                        fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', border: 'none',
+                                        background: isSubmitting
+                                            ? 'rgba(255,255,255,0.06)'
+                                            : 'linear-gradient(135deg, #E8750A 0%, #FF5500 100%)',
+                                        color: isSubmitting ? '#52525B' : '#fff',
+                                        boxShadow: isSubmitting ? 'none' : '0 4px 20px rgba(232,117,10,0.4)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        transition: 'background 0.2s, box-shadow 0.2s',
+                                    }}
                                 >
-                                    {isSubmitting ? 'Creating Contest...' : 'Launch New Contest'}
-                                </Button>
-                                {activeContest && (
-                                    <p className="text-xs text-center text-accent-orange mt-2">
-                                        Warning: Creating a new contest will make it the active contest.
-                                        Be sure the current one is fully finished!
-                                    </p>
-                                )}
+                                    {isSubmitting ? (
+                                        <>Creating contest...</>
+                                    ) : (
+                                        <>
+                                            <Sparkles style={{ width: 16, height: 16 }} />
+                                            Launch New Contest
+                                            <ChevronRight style={{ width: 14, height: 14 }} />
+                                        </>
+                                    )}
+                                </motion.button>
                             </div>
                         </form>
-                    </Card>
-                </div>
-
+                    </div>
+                </motion.div>
             </div>
-        </div>
+        </motion.div>
     );
 }
