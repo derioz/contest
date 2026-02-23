@@ -31,18 +31,26 @@ export async function uploadImageToFiveManage(file: File): Promise<string> {
 
         if (!response.ok) {
             let errorMessage = 'Failed to upload image';
+            const text = await response.text();
             try {
-                const errorData = await response.json();
+                const errorData = JSON.parse(text);
                 errorMessage = errorData.message || errorMessage;
             } catch (e) {
-                // Not JSON
-                errorMessage = await response.text() || errorMessage;
+                // Not JSON, use HTML/Text snippet
+                // If it's a huge HTML page, truncate it
+                errorMessage = text.substring(0, 50) + '...' || errorMessage;
             }
             throw new Error(errorMessage);
         }
 
-        const data = await response.json();
-        return data.url; // Assuming FiveManage returns { url: 'https://...' }
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            return data.url || data.imageUrl; // Support either url or imageUrl
+        } catch (e) {
+            console.error('FiveManage API returned non-JSON:', text);
+            throw new Error('Invalid response from image server.');
+        }
     } catch (error) {
         console.error('FiveManage Upload Error:', error);
         throw error;
