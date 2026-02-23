@@ -18,6 +18,7 @@ import Home from '@/pages/Home';
 import AuthCallback from '@/pages/AuthCallback';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import ContestManager from '@/pages/admin/ContestManager';
+import Submissions from '@/pages/admin/Submissions';
 import Submit from '@/pages/Submit';
 
 export default function App() {
@@ -89,15 +90,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               {/* Phase 2 */}
               <Route path="contests" element={<ContestManager />} />
-              <Route
-                path="submissions"
-                element={
-                  <div className="animate-fade-in">
-                    <h1 className="heading text-3xl text-text-primary mb-4">Submissions</h1>
-                    <p className="text-text-secondary">Coming in Phase 2</p>
-                  </div>
-                }
-              />
+              <Route path="submissions" element={<Submissions />} />
               {/* Phase 3 stubs */}
               <Route
                 path="users"
