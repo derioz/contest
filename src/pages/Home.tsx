@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, query, where, orderBy, getDocs, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginWithDiscord } from '@/lib/auth';
@@ -33,13 +33,16 @@ export default function Home() {
                 const contestsRef = collection(db, 'contests');
                 const q = query(
                     contestsRef,
-                    where('phase', 'in', ['submission', 'voting']),
                     orderBy('createdAt', 'desc'),
                     limit(1)
                 );
                 const snapshot = await getDocs(q);
                 if (!snapshot.empty) {
-                    setActiveContest({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Contest);
+                    const contest = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Contest;
+                    // Only show on homepage if in submission or voting phase
+                    if (contest.phase === 'submission' || contest.phase === 'voting') {
+                        setActiveContest(contest);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch active contest:', error);
