@@ -74,10 +74,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 discordUsername: discordUser.username,
                 discordAvatar: discordUser.avatar,
             });
-        } catch (adminError) {
+        } catch (adminError: any) {
             console.error('Firebase Admin error:', adminError);
             return res.status(500).json({
-                message: 'Firebase Admin SDK not configured. Please set FIREBASE_SERVICE_ACCOUNT_KEY.',
+                message: `Firebase Admin SDK init failed: ${adminError.message}`,
             });
         }
 
