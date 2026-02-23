@@ -1,49 +1,57 @@
 import { cn } from '@/lib/utils';
-import { type ButtonHTMLAttributes, forwardRef } from 'react';
+import { forwardRef } from 'react';
+import type { ReactNode } from 'react';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
     size?: 'sm' | 'md' | 'lg';
     isLoading?: boolean;
+    children?: ReactNode;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
         return (
-            <button
+            <motion.button
                 ref={ref}
                 disabled={disabled || isLoading}
+                whileHover={disabled || isLoading ? undefined : { scale: 1.02 }}
+                whileTap={disabled || isLoading ? undefined : { scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                 className={cn(
-                    'inline-flex items-center justify-center font-heading font-semibold uppercase tracking-wider',
-                    'rounded-lg transition-all duration-300 ease-out',
-                    'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-bg-primary',
-                    'disabled:opacity-50 disabled:cursor-not-allowed',
-                    // Variant styles
+                    'relative inline-flex items-center justify-center font-heading font-semibold tracking-wide',
+                    'rounded-xl transition-all duration-300 ease-out',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary',
+                    'disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
+
                     variant === 'primary' && [
-                        'bg-accent-orange text-white',
-                        'hover:bg-accent-orange-hover hover:shadow-[0_0_30px_rgba(232,117,10,0.3)]',
-                        'focus:ring-accent-orange',
-                        'active:scale-[0.98]',
+                        'bg-gradient-to-r from-accent-orange to-[#FF6B00] text-white',
+                        'shadow-[0_1px_2px_rgba(0,0,0,0.3),0_4px_16px_rgba(232,117,10,0.25)]',
+                        'hover:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_8px_32px_rgba(232,117,10,0.35)]',
+                        'focus-visible:ring-accent-orange',
                     ],
                     variant === 'secondary' && [
-                        'border-2 border-accent-orange text-accent-orange bg-transparent',
-                        'hover:bg-accent-orange hover:text-white hover:shadow-[0_0_30px_rgba(232,117,10,0.2)]',
-                        'focus:ring-accent-orange',
+                        'bg-white/[0.04] border border-white/[0.1] text-text-primary backdrop-blur-lg',
+                        'hover:bg-white/[0.08] hover:border-white/[0.15]',
+                        'shadow-[0_1px_2px_rgba(0,0,0,0.2)]',
+                        'focus-visible:ring-white/30',
                     ],
                     variant === 'ghost' && [
                         'text-text-secondary bg-transparent',
-                        'hover:text-text-primary hover:bg-bg-surface-hover',
-                        'focus:ring-border-subtle',
+                        'hover:text-text-primary hover:bg-white/[0.04]',
+                        'focus-visible:ring-white/20',
                     ],
                     variant === 'danger' && [
-                        'bg-red-600 text-white',
-                        'hover:bg-red-500 hover:shadow-[0_0_30px_rgba(220,38,38,0.3)]',
-                        'focus:ring-red-500',
+                        'bg-red-600/90 text-white border border-red-500/30',
+                        'shadow-[0_1px_2px_rgba(0,0,0,0.3),0_4px_16px_rgba(220,38,38,0.2)]',
+                        'hover:bg-red-600 hover:shadow-[0_1px_2px_rgba(0,0,0,0.3),0_8px_32px_rgba(220,38,38,0.3)]',
+                        'focus-visible:ring-red-500',
                     ],
-                    // Size styles
-                    size === 'sm' && 'px-3 py-1.5 text-xs gap-1.5',
-                    size === 'md' && 'px-5 py-2.5 text-sm gap-2',
-                    size === 'lg' && 'px-7 py-3.5 text-base gap-2.5',
+
+                    size === 'sm' && 'px-4 py-2 text-xs gap-1.5',
+                    size === 'md' && 'px-6 py-2.5 text-sm gap-2',
+                    size === 'lg' && 'px-8 py-3.5 text-sm gap-2.5',
                     className
                 )}
                 {...props}
@@ -55,7 +63,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     </svg>
                 )}
                 {children}
-            </button>
+            </motion.button>
         );
     }
 );
