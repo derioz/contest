@@ -6,9 +6,19 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// NOTE: Firebase Admin SDK is required for custom token creation.
-// Install with: npm install firebase-admin @vercel/node
-// Set FIREBASE_SERVICE_ACCOUNT_KEY env var in Vercel with the JSON service account key.
+import * as admin from 'firebase-admin';
+
+// Initialize Firebase Admin if not already done
+if (!admin.apps.length) {
+    try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+    } catch (e: any) {
+        console.error('Firebase admin initialization error:', e);
+    }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Only allow POST
@@ -56,19 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const discordUser = await userResponse.json();
 
         // Step 3: Create Firebase custom token
-        // Dynamically import firebase-admin to avoid issues if not yet installed
         let customToken: string;
         try {
-            const admin = await import('firebase-admin');
-
-            // Initialize Firebase Admin if not already done
-            if (!admin.apps.length) {
-                const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-                admin.initializeApp({
-                    credential: admin.credential.cert(serviceAccount),
-                });
-            }
-
             // Create a custom token with the Discord user ID as the UID
             customToken = await admin.auth().createCustomToken(discordUser.id, {
                 discordUsername: discordUser.username,
