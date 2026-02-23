@@ -170,11 +170,11 @@ export default function ContestManager() {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-border-subtle">
+                                <div className="pt-4 border-t border-white/[0.06]">
                                     <h4 className="font-heading font-semibold text-text-primary mb-3">Categories ({activeContest.categories.length})</h4>
                                     <div className="flex flex-wrap gap-2">
                                         {activeContest.categories.map(cat => (
-                                            <span key={cat.id} className="text-xs bg-bg-primary border border-border-subtle px-2 py-1 rounded text-text-secondary">
+                                            <span key={cat.id} className="text-xs bg-bg-primary border border-white/[0.06] px-2 py-1 rounded text-text-secondary">
                                                 {cat.name}
                                             </span>
                                         ))}
@@ -245,7 +245,7 @@ export default function ContestManager() {
                                             Target Month
                                         </label>
                                         <select
-                                            className="w-full bg-bg-primary border border-border-subtle rounded-md px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-orange"
+                                            className="w-full bg-bg-primary border border-white/[0.06] rounded-md px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-orange"
                                             value={month}
                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMonth(Number(e.target.value))}
                                         >
@@ -270,7 +270,7 @@ export default function ContestManager() {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-border-subtle">
+                                <div className="pt-4 border-t border-white/[0.06]">
                                     <label className="block text-sm font-medium text-text-secondary mb-3">
                                         Categories
                                     </label>
@@ -280,7 +280,7 @@ export default function ContestManager() {
                                     />
                                 </div>
 
-                                <div className="pt-4 border-t border-border-subtle">
+                                <div className="pt-4 border-t border-white/[0.06]">
                                     <label className="block text-sm font-medium text-text-secondary mb-3">
                                         Voting Deadline (When voting automatically closes)
                                     </label>

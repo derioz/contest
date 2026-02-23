@@ -32,26 +32,27 @@ export default function AdminLayout() {
     };
 
     return (
-        <div className="min-h-screen bg-bg-primary flex">
+        <div className="min-h-screen bg-[#09090B] flex">
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-64 bg-bg-surface border-r border-border-subtle flex flex-col',
+                    'fixed inset-y-0 left-0 z-50 w-64 flex flex-col',
+                    'bg-[#0F0F11] border-r border-white/[0.06]',
                     'transform transition-transform duration-300 md:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
                 {/* Sidebar Header */}
-                <div className="h-16 flex items-center justify-between px-4 border-b border-border-subtle">
-                    <Link to="/admin" className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg gradient-accent flex items-center justify-center font-heading font-bold text-white text-sm">
+                <div className="h-16 flex items-center justify-between px-4 border-b border-white/[0.06]">
+                    <Link to="/admin" className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-accent-orange to-[#FF6B00] flex items-center justify-center font-heading font-bold text-white text-xs shadow-[0_2px_8px_rgba(232,117,10,0.3)]">
                             V
                         </div>
                         <div>
-                            <span className="font-heading font-bold text-sm tracking-wider text-text-primary">
+                            <span className="font-heading font-bold text-sm tracking-wide text-text-primary">
                                 ADMIN
                             </span>
-                            <p className="text-[10px] text-text-muted font-heading uppercase tracking-wider">
+                            <p className="text-[10px] text-text-muted font-medium tracking-wide">
                                 Contest Manager
                             </p>
                         </div>
@@ -65,21 +66,21 @@ export default function AdminLayout() {
                 </div>
 
                 {/* Nav Links */}
-                <nav className="flex-1 py-4 px-3 space-y-1">
+                <nav className="flex-1 py-4 px-3 space-y-0.5">
                     {sidebarLinks.map((link) => (
                         <Link
                             key={link.path}
                             to={link.path}
                             onClick={() => setSidebarOpen(false)}
                             className={cn(
-                                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+                                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200',
                                 isActive(link.path, link.exact)
-                                    ? 'bg-accent-orange-muted text-accent-orange'
-                                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover'
+                                    ? 'bg-accent-orange/10 text-accent-orange border border-accent-orange/15'
+                                    : 'text-text-muted hover:text-text-secondary hover:bg-white/[0.03] border border-transparent'
                             )}
                         >
                             <link.icon className="w-4 h-4 flex-shrink-0" />
-                            <span className="font-heading uppercase tracking-wider text-xs">
+                            <span className="tracking-wide">
                                 {link.label}
                             </span>
                         </Link>
@@ -87,20 +88,20 @@ export default function AdminLayout() {
                 </nav>
 
                 {/* User Info */}
-                <div className="p-4 border-t border-border-subtle">
+                <div className="p-4 border-t border-white/[0.06]">
                     <div className="flex items-center gap-3">
                         {user && (
                             <>
                                 <img
                                     src={user.avatarUrl}
                                     alt={user.username}
-                                    className="w-8 h-8 rounded-full border border-border-subtle"
+                                    className="w-8 h-8 rounded-full ring-1 ring-white/10"
                                 />
                                 <div className="min-w-0">
                                     <p className="text-sm font-medium text-text-primary truncate">
                                         {user.username}
                                     </p>
-                                    <p className="text-[10px] text-accent-orange font-heading uppercase tracking-wider">
+                                    <p className="text-[10px] text-accent-orange font-heading font-semibold uppercase tracking-wider">
                                         Administrator
                                     </p>
                                 </div>
@@ -112,10 +113,10 @@ export default function AdminLayout() {
                 {/* Back to Site */}
                 <Link
                     to="/"
-                    className="flex items-center gap-2 px-4 py-3 border-t border-border-subtle text-text-muted hover:text-text-primary hover:bg-bg-surface-hover transition-all"
+                    className="flex items-center gap-2 px-4 py-3.5 border-t border-white/[0.06] text-text-muted hover:text-text-primary hover:bg-white/[0.03] transition-all"
                 >
                     <ChevronLeft className="w-4 h-4" />
-                    <span className="text-xs font-heading uppercase tracking-wider">
+                    <span className="text-xs font-medium tracking-wide">
                         Back to Site
                     </span>
                 </Link>
@@ -124,7 +125,7 @@ export default function AdminLayout() {
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black/60 md:hidden"
+                    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
@@ -132,14 +133,14 @@ export default function AdminLayout() {
             {/* Main Content */}
             <div className="flex-1 md:ml-64">
                 {/* Mobile header */}
-                <div className="md:hidden h-14 bg-bg-surface border-b border-border-subtle flex items-center px-4 gap-3">
+                <div className="md:hidden h-14 bg-[#0F0F11] border-b border-white/[0.06] flex items-center px-4 gap-3">
                     <button
                         onClick={() => setSidebarOpen(true)}
-                        className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface-hover transition-all"
+                        className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/[0.04] transition-all"
                     >
                         <Menu className="w-5 h-5" />
                     </button>
-                    <span className="font-heading font-bold text-sm tracking-wider text-text-primary">
+                    <span className="font-heading font-bold text-sm tracking-wide text-text-primary">
                         ADMIN PANEL
                     </span>
                 </div>

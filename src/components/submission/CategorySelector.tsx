@@ -26,8 +26,8 @@ export default function CategorySelector({ categories, selectedId, onSelect, dis
                             "focus:outline-none focus:ring-2 focus:ring-accent-orange focus:ring-offset-2 focus:ring-offset-bg-primary",
                             isSelected
                                 ? "bg-accent-orange/10 border-accent-orange shadow-[0_0_20px_rgba(232,117,10,0.15)]"
-                                : "bg-bg-surface border-border-subtle hover:bg-bg-surface-hover hover:border-accent-orange/50",
-                            disabled && !isSelected && "opacity-50 cursor-not-allowed hover:bg-bg-surface hover:border-border-subtle",
+                                : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-accent-orange/50",
+                            disabled && !isSelected && "opacity-50 cursor-not-allowed hover:bg-white/[0.03] hover:border-white/[0.06]",
                             disabled && isSelected && "opacity-80 cursor-not-allowed"
                         )}
                     >

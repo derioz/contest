@@ -76,7 +76,7 @@ export default function CategoryBuilder({ categories, onChange }: CategoryBuilde
                     {categories.map((cat) => (
                         <li
                             key={cat.id}
-                            className="flex items-center justify-between p-3 bg-surface-hover rounded-lg border border-border-subtle group"
+                            className="flex items-center justify-between p-3 bg-white/[0.06] rounded-lg border border-white/[0.06] group"
                         >
                             <div>
                                 <p className="text-text-primary font-medium">{cat.name}</p>

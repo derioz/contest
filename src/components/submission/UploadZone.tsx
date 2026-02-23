@@ -77,7 +77,7 @@ export default function UploadZone({ onImageValid, onClear, isUploading }: Uploa
 
     if (previewUrl) {
         return (
-            <div className="relative rounded-xl overflow-hidden border border-border-subtle bg-bg-surface group">
+            <div className="relative rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.03] group">
                 <img
                     src={previewUrl}
                     alt="Preview"
@@ -117,7 +117,7 @@ export default function UploadZone({ onImageValid, onClear, isUploading }: Uploa
                 "h-[300px]",
                 isHovering
                     ? "border-accent-orange bg-accent-orange/5"
-                    : "border-border-subtle bg-bg-surface hover:bg-bg-surface-hover hover:border-accent-orange/50"
+                    : "border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] hover:border-accent-orange/50"
             )}
         >
             <input

@@ -191,7 +191,7 @@ export default function Submit() {
                             className="absolute inset-0 w-full h-full object-cover"
                         />
 
-                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-border-subtle">
+                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-lg border border-white/[0.06]">
                             <span className="text-white font-heading tracking-widest uppercase text-sm">
                                 Status: <span className="text-accent-orange ml-2">{existingSubmission.status}</span>
                             </span>
@@ -235,7 +235,7 @@ export default function Submit() {
                 {/* Step 1: Upload */}
                 <section className="space-y-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center font-heading text-text-primary">1</div>
+                        <div className="w-8 h-8 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center font-heading text-text-primary">1</div>
                         <h2 className="heading text-2xl text-text-primary">Upload Image</h2>
                     </div>
 
@@ -255,7 +255,7 @@ export default function Submit() {
                         {/* Step 2: Category (Left Column) */}
                         <section className="space-y-4 order-2 lg:order-1">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center font-heading text-text-primary">2</div>
+                                <div className="w-8 h-8 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center font-heading text-text-primary">2</div>
                                 <h2 className="heading text-2xl text-text-primary">Select Category</h2>
                             </div>
 

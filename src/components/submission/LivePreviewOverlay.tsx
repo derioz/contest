@@ -42,7 +42,7 @@ export default function LivePreviewOverlay({ imageUrl }: LivePreviewOverlayProps
             </div>
 
             <div className="absolute top-12 left-12 max-w-md">
-                <div className="bg-black/40 backdrop-blur-md border md:border-border-subtle p-6 rounded-xl">
+                <div className="bg-black/40 backdrop-blur-md border md:border-white/[0.06] p-6 rounded-xl">
                     <h3 className="text-accent-orange font-heading font-bold uppercase tracking-wider mb-2">
                         Server Tip
                     </h3>
