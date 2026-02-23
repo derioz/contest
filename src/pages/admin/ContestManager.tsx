@@ -149,8 +149,8 @@ export default function ContestManager() {
                                     </h3>
                                     <div className="flex gap-2">
                                         <Badge variant={
-                                            activeContest.phase === 'submission' ? 'default' :
-                                                activeContest.phase === 'voting' ? 'success' : 'default'
+                                            activeContest.phase === 'submission' ? 'green' :
+                                                activeContest.phase === 'voting' ? 'orange' : 'default'
                                         }>
                                             {activeContest.phase.toUpperCase()} PHASE
                                         </Badge>
