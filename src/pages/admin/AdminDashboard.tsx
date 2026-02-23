@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import Badge from '@/components/ui/Badge';
+
 import {
     Trophy,
     FileBarChart,
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
                     Quick Actions
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {quickLinks.map((link, i) => (
+                    {quickLinks.map((link) => (
                         <motion.div key={link.path} variants={stagger.item}>
                             <Link to={link.path}>
                                 <motion.div
