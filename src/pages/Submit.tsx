@@ -293,23 +293,27 @@ export default function Submit() {
                         <section className="order-1 lg:order-2 space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="heading text-xl text-text-primary flex items-center gap-2">
-                                    Live Preview Enabled
+                                    Live Preview
                                 </h2>
                             </div>
 
-                            <Card className="p-6 bg-accent-orange/5 border-accent-orange/20 text-text-secondary text-sm">
-                                The dark gradient overlay you see on the screen simulates the server login experience.
+                            <div className="aspect-video w-full rounded-xl overflow-hidden shadow-2xl border border-white/10 relative bg-bg-secondary">
+                                <LivePreviewOverlay imageUrl={previewUrl} />
+                                {isSubmitting && (
+                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                                        <div className="text-accent-orange font-heading font-bold animate-pulse">Publishing Entry...</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <Card className="p-4 bg-accent-orange/5 border-accent-orange/20 text-text-secondary text-sm">
+                                The dark gradient overlay simulates the server login experience.
                                 This ensures your subject isn't obscured by the actual UI text when players load in.
                             </Card>
                         </section>
                     </div>
                 )}
             </div>
-
-            {/* Render the full screen overlay if there's a local preview url */}
-            {previewUrl && !isSubmitting && (
-                <LivePreviewOverlay imageUrl={previewUrl} />
-            )}
         </div>
     );
 }
