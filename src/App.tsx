@@ -14,6 +14,8 @@ import RequireAdmin from '@/components/guards/RequireAdmin';
 import Home from '@/pages/Home';
 import AuthCallback from '@/pages/AuthCallback';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
+import ContestManager from '@/pages/admin/ContestManager';
+import Submit from '@/pages/Submit';
 
 export default function App() {
   return (
@@ -50,15 +52,12 @@ export default function App() {
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
-            {/* Phase 2 stub */}
+            {/* Phase 2 */}
             <Route
               path="/submit"
               element={
                 <RequireAuth>
-                  <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-                    <h1 className="heading text-3xl text-text-primary mb-4">Submit Your Photo</h1>
-                    <p className="text-text-secondary">Coming in Phase 2</p>
-                  </div>
+                  <Submit />
                 </RequireAuth>
               }
             />
@@ -84,16 +83,8 @@ export default function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            {/* Phase 2 stubs */}
-            <Route
-              path="contests"
-              element={
-                <div className="animate-fade-in">
-                  <h1 className="heading text-3xl text-text-primary mb-4">Contest Manager</h1>
-                  <p className="text-text-secondary">Coming in Phase 2</p>
-                </div>
-              }
-            />
+            {/* Phase 2 */}
+            <Route path="contests" element={<ContestManager />} />
             <Route
               path="submissions"
               element={
